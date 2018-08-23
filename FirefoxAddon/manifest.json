@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "name": "DNS of HTTPS",
+  "version": "0.1",
+
+  "author": "www.linkedin.com/in/kevin-bolton",
+  "description": "Let browser using private IP, and then DoH public IP.",
+  "short_name": "DoH",
+  "icons": {
+    "48": "icons/ExtensionIcon.png"
+  },
+  
+  "permissions": [
+    "dns"
+  ],
+  
+  "background": {  
+    "scripts": ["background_script/DoH.js"]
+  }
+}
