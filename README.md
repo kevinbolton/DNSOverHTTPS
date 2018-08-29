@@ -2,6 +2,6 @@
 
 These are PoCs of DoH.
 
-DoH by Python is done.
-DoH by Firefox add-on is doing.
-Doh by Chrome extension is pending.
+DoH by Python is done.<br />
+DoH by Firefox add-on is doing.<br />
+Doh by Chrome extension is pending.<br />
