@@ -18,7 +18,7 @@ function handleMessage(message) {
                 if (message.webFQDN == webFQDNHTTP) {
                     for (i in recordDoH.Answer) {
                         if (recordDoH.Answer[i].data == webIPHTTP) {
-                            console.log("TRR IP: ", recordDoH.Answer[i].data, " = ", webIP);
+                            console.log("TRR IP: ", recordDoH.Answer[i].data, " = ", webIPHTTP);
                             return true;
                         }
                     }
@@ -32,6 +32,7 @@ function handleMessage(message) {
                             }
                         }
                     }
+                    return false;
                 }
             } else {
                 console.log("[Error] DoH status: ", recordDoH.Status);    
@@ -39,7 +40,7 @@ function handleMessage(message) {
         }
 
         function updateIcon() {
-            if (iconColor = "green") {
+            if (iconColor == "green") {
                 browser.browserAction.setIcon({
                     path: {
                         16: "icons/GreenButton-16.png",
@@ -47,7 +48,7 @@ function handleMessage(message) {
                     },
                     tabId: currentTab.id
                 });
-            } else if (iconColor = "red") {
+            } else if (iconColor == "red") {
                 browser.browserAction.setIcon({
                     path: {
                         16: "icons/RedButton-16.png",
@@ -69,14 +70,14 @@ function handleMessage(message) {
             if(clientDoH.status == 200 && clientDoH.response != null) {
                 if (validationIP(clientDoH.response)) {
                     console.log("Change icon to green color");
+                    iconColor = "green";
                     var gettingActiveTab = browser.tabs.query({active: true, currentWindow: true});
                     gettingActiveTab.then(updateTab);
-                    iconColor = "green"
                 } else {
-                    console.log("Change icon to red color");                    
+                    console.log("Change icon to red color");
+                    iconColor = "red";
                     var gettingActiveTab = browser.tabs.query({active: true, currentWindow: true});
                     gettingActiveTab.then(updateTab);
-                    iconColor = "red"
                 }
             } else {
                 console.log("[Error] DoH HTTP status: ", clientDoH.status);
