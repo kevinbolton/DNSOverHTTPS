@@ -12,7 +12,9 @@
   
   "permissions": [
     "dns",
-    "tabs"
+    "tabs",
+    "webRequest",
+    "*://*/*"
   ],
 
   "browser_action": {
