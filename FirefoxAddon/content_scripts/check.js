@@ -1,11 +1,10 @@
-function sendWebFQDN() {
-  let webFQDN = `${window.location.hostname}`;
-  browser.runtime.sendMessage({"webFQDN": webFQDN});
+function sendWebFqdnFromWindow() {
+  let webFqdnFromWindow = `${window.location.hostname}`;
+  browser.runtime.sendMessage({"webFqdnFromWindow": webFqdnFromWindow});
   /*
-  if (!document.title.includes(webFQDN)) {
-    document.title = document.title + " - " + webFQDN;
+  if (!document.title.includes(webFqdnFromWindow)) {
+    document.title = document.title + " - " + webFqdnFromWindow;
   }
   */
 }
-
-window.addEventListener("load", sendWebFQDN());
+window.addEventListener("load", sendWebFqdnFromWindow());
