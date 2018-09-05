@@ -1,25 +1,198 @@
-var webIpFromBrowser;
-var webFqdnFromBrowser;
-var webDomainFromBrowser;
-var webPtrFromBrowser; //Input of reverse DoH
-var webPtrFromDoh;
-var flagPrivateIp;
-var resultByReverseDoh;
+// Web site IP, PTR, FQDN, Domain name from webRequest
+var webIpFromBrowser, webPtrFromBrowser, webFqdnFromBrowser, webDomainFromBrowser;
+var dohClient, dohClientReverse;
+// [3 ~ 5] Web site IP from DNS over HTTPS server, [dohed:false...dohed:true]
+var webIpFromDoh, webPtrFromDoh, webCnameFromDoh;
+// Resluts
+var flagPrivateIp, resultByDoh, resultByReverseDoh;
+var currentTab;
 
-// Get FQDN from URL
-function getFqdn(url) {
-    let fqdn;
+function changeIcon() {
+    console.log("Is private IP?", flagPrivateIp.toString()); // For Debug
+    console.log("Result by DoH:", resultByDoh); // For Debug
+    console.log("Result by reverse DoH:", resultByReverseDoh); // For Debug
 
-    if (url.indexOf("//") > -1) {
-        fqdn = url.split('/')[2];
+    if (flagPrivateIp) {
+        iconColor = "yellow";
+    } else if (resultByDoh == "Red" && resultByReverseDoh == "Red") {
+        iconColor = "red";
     } else {
-        fqdn = url.split('/')[0];
+        iconColor = "green";
     }
 
-    fqdn = fqdn.split(':')[0]; //find & remove port number
-    fqdn = fqdn.split('?')[0]; //find & remove "?"
+    if (flagPrivateIp) {
+        browser.browserAction.setIcon({
+            path: {
+                16: "icons/YellowButton-16.png",
+                32: "icons/YellowButton-32.png"
+            },
+            tabId: currentTab.id
+        });
+    } else if (resultByDoh == "Red" && resultByReverseDoh == "Red") {
+        browser.browserAction.setIcon({
+            path: {
+                16: "icons/RedButton-16.png",
+                32: "icons/RedButton-32.png"
+            },
+            tabId: currentTab.id
+        });
+    } else {
+        browser.browserAction.setIcon({
+            path: {
+                16: "icons/GreenButton-16.png",
+                32: "icons/GreenButton-32.png"
+            },
+            tabId: currentTab.id
+        });
+    }
+}
 
-    return fqdn;
+function getResult() {
+    console.log("IP from Browser:", webIpFromBrowser);
+    console.log("Domain name from Browser:", webDomainFromBrowser);
+    console.log("IPs from DoH", webIpFromDoh);
+    console.log("PTRs from DoH", webPtrFromDoh);
+    console.log("CNAMEs from DoH", webCnameFromDoh);
+
+    for (let i in webIpFromDoh) {
+        if (resultByDoh == "Green") {
+            break;
+        } else {
+            if (webIpFromDoh[i].ip == webIpFromBrowser) {
+                resultByDoh = "Green";
+                break;
+            } else {
+                resultByDoh = "Red";
+            }
+        }
+    }
+
+    // Green if PTR/CNAME contain domain name 
+    for (let i in webPtrFromDoh) {
+        if (resultByReverseDoh == "Green") {
+            break;
+        } else {
+            if (webPtrFromDoh[i].ptr.search(webDomainFromBrowser) != -1) {
+                resultByReverseDoh = "Green";
+                break;
+            } else {
+                resultByReverseDoh = "Red";
+            }
+        }
+    }
+    for (let i in webCnameFromDoh) {
+        if (resultByReverseDoh == "Green") {
+            break;
+        } else {
+            if (webCnameFromDoh[i].cname.search(webDomainFromBrowser) != -1) {
+                resultByReverseDoh = "Green";
+                break;
+            } else {
+                resultByReverseDoh = "Red";
+            }
+        }
+    }
+}
+
+function doh() { 
+    console.log("Response of DoH", dohClient.response);
+
+    if(dohClient.status == 200 && dohClient.response != null) {
+        if (dohClient.response.Status == 0) {
+            for (x in dohClient.response.Answer) {
+                switch(dohClient.response.Answer[x].type) {
+                    case 1:
+                        let locationOfwebIpFromDoh = webIpFromDoh.map(function(e) { return e.ip; }).indexOf(dohClient.response.Answer[x].data);
+                        if (locationOfwebIpFromDoh == -1)
+                            webIpFromDoh.unshift({ip: dohClient.response.Answer[x].data, dohed: false});
+                        break;
+                    case 5:
+                        let locationOfwebCnameFromDoh = webCnameFromDoh.map(function(e) { return e.cname; }).indexOf(dohClient.response.Answer[x].data);
+                        if (locationOfwebCnameFromDoh == -1)
+                            webCnameFromDoh.unshift({cname: dohClient.response.Answer[x].data, dohed: false});
+                        break;
+                    default:
+                        console.log("DoH answer is: ", dohClient.response.Answer[x]);
+                }
+            }
+        } else {
+            console.log("[Error] DoH response status: ", dohClient.response.Status);
+        }
+    } else {
+        console.log("[Error] DoH status: ", dohClient.status);
+        console.log("[Error] DoH Response: ", dohClient.response);
+    }
+}
+
+function dohReverse() { 
+    console.log("Response of reverse DoH", dohClientReverse.response);
+
+    if(dohClientReverse.status == 200 && dohClientReverse.response != null) {
+        if (dohClientReverse.response.Status == 0) {
+            for (x in dohClientReverse.response.Answer) {
+                switch(dohClientReverse.response.Answer[x].type) {
+                    case 12:
+                        let locationOfwebPtrFromDoh = webPtrFromDoh.map(function(e) { return e.ptr; }).indexOf(dohClientReverse.response.Answer[x].data);
+                        if (locationOfwebPtrFromDoh == -1)
+                            webPtrFromDoh.unshift({ptr: dohClientReverse.response.Answer[x].data, dohed: false});
+                        break;
+                    default:
+                        console.log("Reverse DoH answer is: ", dohClientReverse.response.Answer[x]);
+                }
+            }
+        } else {
+            console.log("[Error] Reverse DoH response status: ", dohClientReverse.response.Status);
+        }
+    } else {
+        console.log("[Error] Reverse DoH status: ", dohClientReverse.status);
+        console.log("[Error] Reverse DoH Response: ", dohClientReverse.response);
+    }
+}
+
+function waitForAllDohDone() {
+    if (dohClient.readyState == XMLHttpRequest.DONE && dohClientReverse.readyState == XMLHttpRequest.DONE) {
+        doh();
+        dohReverse();
+        getResult();
+        changeIcon();
+    }
+}
+
+// all non dohed is done??
+function getWebInfoFromDoh() {
+    console.log("Fqdn from Browser:", webFqdnFromBrowser);
+    console.log("PTR from Browser:", webPtrFromBrowser);
+
+    /* Enable when use cloudflare-dns */
+    //var urlDoH = "https://cloudflare-dns.com/dns-query?name=" + message.webFqdnFromWindow + "&type=A&do=false&cd=false";
+    let urlForDoH = "https://dns.google.com/resolve?name=" + webFqdnFromBrowser;
+    dohClient = new XMLHttpRequest();
+    dohClient.open("GET", urlForDoH, true);
+    /* Enable when use cloudflare-dns */
+    // dohClient.setRequestHeader("accept", "application/dns-json");
+    dohClient.responseType = "json";
+    dohClient.onreadystatechange = waitForAllDohDone;
+    dohClient.send();
+
+    let urlForReverseDoh = "https://dns.google.com/resolve?name=" + webPtrFromBrowser +"&type=PTR";
+    dohClientReverse = new XMLHttpRequest();
+    dohClientReverse.open("GET", urlForReverseDoh, true);
+    dohClientReverse.responseType = "json";
+    dohClientReverse.onload = waitForAllDohDone;
+    dohClientReverse.send();
+}
+
+function isPrivateIp(webIp) {
+    let ip = webIp.split(".");
+    if (ip[0] == 10) {
+        return true;
+    } else if (ip[0] == 172 && ip[1] >= 16 && ip[1] <= 32) {
+        return true;
+    } else if (ip[0] == 192 && ip[1] == 168) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 function getDomain(fqdn) {
@@ -36,202 +209,58 @@ function getDomain(fqdn) {
     return webDomain;
 }
 
+function getFqdn(url) {
+    let fqdn;
+
+    if (url.indexOf("//") > -1) {
+        fqdn = url.split('/')[2];
+    } else {
+        fqdn = url.split('/')[0];
+    }
+
+    fqdn = fqdn.split(':')[0]; //find & remove port number
+    fqdn = fqdn.split('?')[0]; //find & remove "?"
+
+    return fqdn;
+}
+
 function getPtr(webIp) {
     let ptr = webIp.split(".");
     return ptr[3] + "." + ptr[2] + "." + ptr[1] + "." + ptr[0] + ".in-addr.arpa";
 }
 
-function isPrivateIp(webIp) {
-    let ip = webIp.split(".");
-    if (ip[0] == 10) {
-        return true;
-    } else if (ip[0] == 172 && ip[1] >= 16 && ip[1] <= 32) {
-        return true;
-    } else if (ip[0] == 192 && ip[1] == 168) {
-        return true;
-    } else {
-        return false;
-    }
+function getWebInfoFromBrowser(browserResponse) {
+    webIpFromBrowser = browserResponse.ip;
+    //webIpFromBrowser = "172.16.0.0";
+    webPtrFromBrowser = getPtr(browserResponse.ip);
+    webFqdnFromBrowser = getFqdn(browserResponse.url);
+    webDomainFromBrowser = getDomain(webFqdnFromBrowser);
+    flagPrivateIp = isPrivateIp(webIpFromBrowser);
 }
 
-// Get web site IP and FQDN
 function dohByWebRequest(browserResponse) {
-    function getIpFqdnFromBrowser() {
-        webIpFromBrowser = browserResponse.ip;
-        //webIpFromBrowser = "172.16.0.0";
-        flagPrivateIp = isPrivateIp(webIpFromBrowser);
-        webFqdnFromBrowser = getFqdn(browserResponse.url);
-        webDomainFromBrowser = getDomain(webFqdnFromBrowser);
-        webPtrFromBrowser = getPtr(browserResponse.ip);
-    }
-    getIpFqdnFromBrowser();
-
-    function getPtrFromDoh(webIp) {
-        function setWebPtrFromDoh() {
-            webPtrFromDoh = reverseDohClient.response.Answer;
-        }
-        // https://dns.google.com/resolve?name=1.1.95.168.in-addr.arpa&type=PTR&cd=1
-        let urlForReverseDoh = "https://dns.google.com/resolve?name=" + webIp +"&type=PTR";
-        var reverseDohClient = new XMLHttpRequest();
-        reverseDohClient.open("GET", urlForReverseDoh, true);
-        reverseDohClient.responseType = "json";
-        reverseDohClient.onload = setWebPtrFromDoh;
-        reverseDohClient.send();
-    }
-    getPtrFromDoh(webPtrFromBrowser);
-
-    console.log("IP from Browser:", webIpFromBrowser);
-    //console.log("Is private IP:", flagPrivateIp.toString());
-    console.log("FQDN from Browser:", webFqdnFromBrowser);
-    console.log("Domain from Browser:", webDomainFromBrowser);
-    console.log("PTR from Browser:", webPtrFromBrowser);
-    if (webPtrFromDoh) {
-        for (let i in webPtrFromDoh) {
-            console.log("PTR", i, "from DoH:", webPtrFromDoh[i].data);
-        }
-    } else {
-        console.log("PTR from DoH is null")
-    }
- 
-    if (webPtrFromDoh && webDomainFromBrowser) {
-        for (let i in webPtrFromDoh) {
-            if (webPtrFromDoh[i].data.search(webFqdnFromBrowser)) {
-                resultByReverseDoh = "Green";
-            } else {
-                resultByReverseDoh = "Red";
-            }
-        }
-    } else {
-        console.log("PTR or Domain name not all readly~");
-    }
+    webIpFromDoh = [];
+    webPtrFromDoh = [];
+    webCnameFromDoh = [];
+    resultByDoh = "";
+    resultByReverseDoh = "";
+    getWebInfoFromBrowser(browserResponse);
+    getWebInfoFromDoh();
 }
+
+function updateActiveTab() {
+    function updateTab(tabs) {
+        if (tabs[0])
+            currentTab = tabs[0];
+    }
+
+    var gettingActiveTab = browser.tabs.query({active: true, currentWindow: true});
+    gettingActiveTab.then(updateTab);
+}
+
+browser.tabs.onUpdated.addListener(updateActiveTab); // listen to tab URL changes
+browser.tabs.onActivated.addListener(updateActiveTab); // listen to tab switching
+browser.windows.onFocusChanged.addListener(updateActiveTab); // listen for window switching
+updateActiveTab(); // update when the extension loads initially
+
 browser.webRequest.onResponseStarted.addListener(dohByWebRequest, {urls:["*://*/*"], types:["main_frame"]}, ["responseHeaders"]);
-
-
-
-function handleMessage(message) {
-    console.log("Web FQDN from the content script: " + message.webFqdnFromWindow);
-
-    function osDnsResolveErr(osDnsResolveErrMsg) {
-        console.log("OS DNS resolve error: ", osDnsResolveErrMsg.message);
-    }
-
-    function osDnsResolved(osDnsRecord) {
-        console.log("Resolved by OS' DNS...");
-        console.log("canonicalName: ", osDnsRecord.canonicalName);
-        console.log("IP addresses: ", osDnsRecord.addresses);
-        console.log("Is TRR?: ", osDnsRecord.isTRR.toString());
-        var currentTab;
-        var iconColor;
-
-        function validationIP(recordDoH) {
-            if (recordDoH.Status == "0") {
-                console.log("DoH status: NoError");
-                for (let i in recordDoH.Answer) {                    
-                    console.log("TTR IP ", i, " is: ", recordDoH.Answer[i].data);
-                } // Print all IPs from DoH server
-                for (let j in osDnsRecord.addresses) {
-                    console.log("OS'DNS IP ", j, " is: ", osDnsRecord.addresses[j]);
-                } // Print all IPs from OS DNS server
-                console.log("Web IP: ", webIpFromBrowser); // Print IP from browser
-                console.log("Web URL: ", webFqdnFromBrowser); // Print URL from browser
-
-                // Need to make a decision: What is the best way(DOM or HTTP) to get FQDN, and redesign code
-                // Need to make a decision: Should add-on use OS DNS' IP to compare?
-                // If both of FQDNs that received from HTTP & windows are same, compare HTTP'IP & DoH'IP
-                if (message.webFqdnFromWindow == webFqdnFromBrowser) {
-                    for (i in recordDoH.Answer) {
-                        if (recordDoH.Answer[i].data == webIpFromBrowser) {
-                            console.log("TRR IP: ", recordDoH.Answer[i].data, " = ", webIpFromBrowser);
-                            return true;
-                        }
-                    }
-                    return false;
-                } else { // else compare OS DNS IP & DoH'sIP
-                    for (i in recordDoH.Answer) {
-                        for (j in osDnsRecord.addresses) {
-                            if (recordDoH.Answer[i].data == osDnsRecord.addresses[j]) {
-                                console.log("TRR IP: ", recordDoH.Answer[i].data, " = ", osDnsRecord.addresses[j]);
-                                return true;
-                            }
-                        }
-                    }
-                    return false;
-                }
-            } else {
-                console.log("[Error] DoH status: ", recordDoH.Status);    
-            }
-        }
-
-        function updateIcon() {
-            console.log("Result by reverse DoH:", resultByReverseDoh);
-            console.log("Result by DoH:", iconColor);
-            console.log("Is private IP?", flagPrivateIp);
-            if (flagPrivateIp) {
-                browser.browserAction.setIcon({
-                    path: {
-                        16: "icons/YellowButton-16.png",
-                        32: "icons/YellowButton-32.png"
-                    },
-                    tabId: currentTab.id
-                });
-            } else if (iconColor == "green" || resultByReverseDoh == "Green") {
-                browser.browserAction.setIcon({
-                    path: {
-                        16: "icons/GreenButton-16.png",
-                        32: "icons/GreenButton-32.png"
-                    },
-                    tabId: currentTab.id
-                });
-            } else if (iconColor == "red" || resultByReverseDoh == "Red") {
-                browser.browserAction.setIcon({
-                    path: {
-                        16: "icons/RedButton-16.png",
-                        32: "icons/RedButton-32.png"
-                    },
-                    tabId: currentTab.id
-                });
-            }
-        }
-
-        function updateTab(tabs) {
-            if (tabs[0]) {
-              currentTab = tabs[0];
-              updateIcon();
-            }
-        }
-
-        function handlerDoH() {
-            if(clientDoH.status == 200 && clientDoH.response != null) {
-                if (validationIP(clientDoH.response)) {
-                    console.log("Change icon to green color");
-                    iconColor = "green";
-                    var gettingActiveTab = browser.tabs.query({active: true, currentWindow: true});
-                    gettingActiveTab.then(updateTab);
-                } else {
-                    console.log("Change icon to red color");
-                    iconColor = "red";
-                    var gettingActiveTab = browser.tabs.query({active: true, currentWindow: true});
-                    gettingActiveTab.then(updateTab);
-                }
-            } else {
-                console.log("[Error] DoH HTTP status: ", clientDoH.status);
-                console.log("[Error] DoH Response: ", clientDoH.response);
-            }
-        }
-
-        /* Enable when use cloudflare-dns */
-        //var urlDoH = "https://cloudflare-dns.com/dns-query?name=" + message.webFqdnFromWindow + "&type=A&do=false&cd=false";
-        var urlDoH = "https://dns.google.com/resolve?name=" + message.webFqdnFromWindow;
-        var clientDoH = new XMLHttpRequest();
-        clientDoH.open("GET", urlDoH, true);
-        /* Enable when use cloudflare-dns */
-        // clientDoH.setRequestHeader("accept", "application/dns-json");
-        clientDoH.responseType = "json";
-        clientDoH.onload = handlerDoH;
-        clientDoH.send();
-    }
-    resolving = browser.dns.resolve(message.webFqdnFromWindow, ["disable_trr", "bypass_cache", "disable_ipv6", "canonical_name"]);
-    resolving.then(osDnsResolved, osDnsResolveErr);
-}
-browser.runtime.onMessage.addListener(handleMessage);

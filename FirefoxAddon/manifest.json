@@ -1,13 +1,14 @@
 {
   "manifest_version": 2,
   "name": "DNS of HTTPS",
-  "version": "0.1",
+  "version": "0.2",
 
   "author": "www.linkedin.com/in/kevin-bolton",
-  "description": "Let browser using private IP, and then DoH public IP.",
+  "description": "Check web site IP is spoofed or not",
   "short_name": "DoH",
   "icons": {
-    "48": "icons/ExtensionIcon.png"
+    "48": "icons/ExtensionIcon-48.png",
+    "96": "icons/ExtensionIcon-96.png"
   },
   
   "permissions": [
@@ -27,13 +28,5 @@
 
   "background": {
     "scripts": ["background_script/DoH.js"]
-  },
-
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content_scripts/check.js"],
-      "run_at": "document_end"
-    }
-  ]
+  }
 }
