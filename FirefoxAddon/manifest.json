@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "name": "DNS of HTTPS",
+  "name": "DNS over HTTPS",
   "version": "0.2",
 
   "author": "www.linkedin.com/in/kevin-bolton",
