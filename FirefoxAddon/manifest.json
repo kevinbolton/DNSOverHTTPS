@@ -7,7 +7,9 @@
   "description": "Check web site IP is spoofed or not",
   "short_name": "DoH",
   "icons": {
+    "32": "icons/ExtensionIcon-32.png",
     "48": "icons/ExtensionIcon-48.png",
+    "64": "icons/ExtensionIcon-64.png",
     "96": "icons/ExtensionIcon-96.png"
   },
   
