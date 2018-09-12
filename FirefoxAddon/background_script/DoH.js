@@ -1,18 +1,15 @@
-// consider to remove resultByPtr
-
 // Web site IP, PTR, FQDN, Domain name from webRequest
 var webIpFromBrowser, webPtrFromBrowser, webFqdnFromBrowser, webDomainFromBrowser;
 var dohClient, dohClientReverse, dohClientIP, dohClientCf, dohClientReverseCf, dohClientIPCf;
 // [3 ~ 5] Web site IP from DNS over HTTPS server, [dohed:false...dohed:true]
 var webIpForDoh, webPtrForDoh, webCnameForDoh;
 // Resluts
-var flagPrivateIp, resultByIp, resultByPtr, resultByCname;
+var flagPrivateIp, resultByIp, resultByCname;
 var currentTab, resultOfDohs;
 
 function changeIcon() {
     console.log("Is private IP?", flagPrivateIp.toString()); // For Debug
     console.log("Result by IP:", resultByIp); // For Debug
-    console.log("Result by PTR:", resultByPtr); // For Debug
     console.log("Result by CNAME:", resultByCname); // For Debug
 
     if (flagPrivateIp) {
@@ -23,7 +20,7 @@ function changeIcon() {
             },
             tabId: currentTab.id
         });
-    } else if (resultByIp == "Red" && resultByPtr == "Red" && resultByCname == "Red") {
+    } else if (resultByIp == "Red" && resultByCname == "Red") {
         browser.browserAction.setIcon({
             path: {
                 16: "icons/RedButton-16.png",
@@ -64,29 +61,15 @@ function getResult() {
         }
     }
 
-    // Green if PTR/CNAME contain domain name 
-    for (let i in webPtrForDoh) {
-        if (resultByPtr == "Green") {
-            break;
-        } else {
-            if (webPtrForDoh[i].answer == true && webPtrForDoh[i].ptr.search(webDomainFromBrowser) != -1) {
-                resultByPtr = "Green";
-                break;
-            } else {
-                resultByPtr = "Red";
-            }
-        }
-    }
-
     for (let i in webCnameForDoh) {
         if (resultByCname == "Green") {
             break;
         } else {
-            if (webCnameForDoh[i].answer == true && webCnameForDoh[i].cname.search(webDomainFromBrowser) != -1) {
-                resultByCname = "Green";
-                break;
-            } else {
-                resultByCname = "Red";
+            if (webCnameForDoh[i].answer == true) {
+                if (webCnameForDoh[i].cname.indexOf(webDomainFromBrowser) != -1) {
+                    resultByCname = "Green";
+                    break;
+                }
             }
         }
     }
@@ -1000,16 +983,13 @@ function isPrivateIp(webIp) {
 
 function getDomain(fqdn) {
     let domain;
-    let webDomain = "";
     domain = fqdn.split('.');
-    for (i = 1; i < domain.length; i++) {
-        if ((i+1) < domain.length) {
-            webDomain = webDomain + domain[i] + ".";
-        } else {
-            webDomain = webDomain + domain[i];
-        }
+    if (domain[domain.length-2] == "com") {
+        domain = domain[domain.length-3] + "." + domain[domain.length-2];
+    } else {
+        domain = domain[domain.length-4] + "." + domain[domain.length-3];
     }
-    return webDomain;
+    return domain;
 }
 
 function getFqdn(url) {
@@ -1048,9 +1028,8 @@ function doh(browserResponse) {
     webIpForDoh = [];
     webPtrForDoh = [];
     webCnameForDoh = [];
-    resultByIp = "";
-    resultByPtr = "";
-    resultByCname = "";
+    resultByIp = "Red";
+    resultByCname = "Red";
     getWebInfoFromBrowser(browserResponse);
     dohFromWebInfo();
 }
