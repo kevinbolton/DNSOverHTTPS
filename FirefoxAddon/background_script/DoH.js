@@ -7,6 +7,19 @@ var webIpForDoh, webPtrForDoh, webCnameForDoh;
 var flagPrivateIp, resultByIp, resultByCname;
 var currentTab, resultOfDohs;
 
+function getTabInfomation() {
+    function updateTab(tabs) {
+        if (tabs[0])
+            currentTab = tabs[0];
+    }
+    var gettingActiveTab = browser.tabs.query({active: true, currentWindow: true});
+    gettingActiveTab.then(updateTab);
+}
+browser.windows.onFocusChanged.addListener(getTabInfomation); // listen for window switching
+browser.tabs.onActivated.addListener(getTabInfomation); // listen to tab switching
+browser.tabs.onUpdated.addListener(getTabInfomation); // listen to tab URL changes
+getTabInfomation(); // update when the extension loads initially
+
 function changeIcon() {
     console.log("Is private IP?", flagPrivateIp.toString()); // For Debug
     console.log("Result by IP:", resultByIp); // For Debug
@@ -1024,37 +1037,24 @@ function getPtr(webIp) {
 }
 
 function getWebInfoFromBrowser(browserResponse) {
-    webIpFromBrowser = browserResponse.ip;
-    webPtrFromBrowser = getPtr(webIpFromBrowser);
-    webFqdnFromBrowser = getFqdn(browserResponse.url);
-    webDomainFromBrowser = getDomain(webFqdnFromBrowser);
-    flagPrivateIp = isPrivateIp(webIpFromBrowser);
-    webIpForDoh.push({ip: webIpFromBrowser, dohed: true, answer: false});
-    webPtrForDoh.unshift({ptr: webPtrFromBrowser, dohed: false, answer: false});
-    webCnameForDoh.unshift({cname: webFqdnFromBrowser, dohed: false, answer: false});
-}
-
-function doh(browserResponse) {
     webIpForDoh = [];
     webPtrForDoh = [];
     webCnameForDoh = [];
+
+    webFqdnFromBrowser = getFqdn(browserResponse.url);
+    webIpFromBrowser = browserResponse.ip;
+    webDomainFromBrowser = getDomain(webFqdnFromBrowser);
+    webPtrFromBrowser = getPtr(webIpFromBrowser);
+    flagPrivateIp = isPrivateIp(webIpFromBrowser);
+    webCnameForDoh.unshift({cname: webFqdnFromBrowser, dohed: false, answer: false});
+    webIpForDoh.push({ip: webIpFromBrowser, dohed: true, answer: false});
+    webPtrForDoh.unshift({ptr: webPtrFromBrowser, dohed: false, answer: false});
+}
+
+function doh(browserResponse) {
     resultByIp = "Red";
     resultByCname = "Red";
     getWebInfoFromBrowser(browserResponse);
     dohFromWebInfo();
 }
 browser.webRequest.onResponseStarted.addListener(doh, {urls:["*://*/*"], types:["main_frame"]}, ["responseHeaders"]);
-
-function updateActiveTab() {
-    function updateTab(tabs) {
-        if (tabs[0])
-            currentTab = tabs[0];
-    }
-
-    var gettingActiveTab = browser.tabs.query({active: true, currentWindow: true});
-    gettingActiveTab.then(updateTab);
-}
-browser.tabs.onUpdated.addListener(updateActiveTab); // listen to tab URL changes
-browser.tabs.onActivated.addListener(updateActiveTab); // listen to tab switching
-browser.windows.onFocusChanged.addListener(updateActiveTab); // listen for window switching
-updateActiveTab(); // update when the extension loads initially
