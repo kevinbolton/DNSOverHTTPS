@@ -5,7 +5,7 @@ var dohClient, dohClientReverse, dohClientIP, dohClientCf, dohClientReverseCf, d
 var webIpForDoh, webPtrForDoh, webCnameForDoh;
 // Resluts
 var flagPrivateIp, resultByIp, resultByCname;
-var currentTab, resultOfDohs;
+var currentTab, resultOfDohs, dnsRecordErr;
 
 function getTabInfomation() {
     function updateTab(tabs) {
@@ -123,6 +123,7 @@ function updateRecordDohCf() {
             }
         } else {
             console.log("[Error] DoH response status: ", dohClientCf.response.Status);
+            dnsRecordErr = true;
         }
     } else {
         console.log("[Error] DoH status: ", dohClientCf.status);
@@ -235,6 +236,7 @@ function updateRecordDoh() {
             }
         } else {
             console.log("[Error] DoH response status: ", dohClient.response.Status);
+            dnsRecordErr = true;
         }
     } else {
         console.log("[Error] DoH status: ", dohClient.status);
@@ -891,17 +893,19 @@ function dohFromWebInfo() {
     resultOfDohs = 0; // [cname][ptr][ip]
 
     // Cloudflare
-    for (i in webCnameForDoh) {
-        if (webCnameForDoh[i].dohed == false) {
-            let urlForDoHCf = "https://cloudflare-dns.com/dns-query?name=" + webCnameForDoh[i].cname + "&type=A&do=false&cd=false";
-            dohClientCf = new XMLHttpRequest();
-            dohClientCf.open("GET", urlForDoHCf, true);
-            dohClientCf.setRequestHeader("accept", "application/dns-json");
-            dohClientCf.responseType = "json";
-            dohClientCf.onreadystatechange = waitForAllDohDone;
-            dohClientCf.send();
-            resultOfDohs += 32;
-            break;
+    if (!dnsRecordErr) { 
+        for (i in webCnameForDoh) {
+            if (webCnameForDoh[i].dohed == false) {
+                let urlForDoHCf = "https://cloudflare-dns.com/dns-query?name=" + webCnameForDoh[i].cname + "&type=A&do=false&cd=false";
+                dohClientCf = new XMLHttpRequest();
+                dohClientCf.open("GET", urlForDoHCf, true);
+                dohClientCf.setRequestHeader("accept", "application/dns-json");
+                dohClientCf.responseType = "json";
+                dohClientCf.onreadystatechange = waitForAllDohDone;
+                dohClientCf.send();
+                resultOfDohs += 32;
+                break;
+            }
         }
     }
     
@@ -935,16 +939,18 @@ function dohFromWebInfo() {
     }
     
     // Google
-    for (i in webCnameForDoh) {
-        if (webCnameForDoh[i].dohed == false) {
-            let urlForDoH = "https://dns.google.com/resolve?name=" + webCnameForDoh[i].cname;
-            dohClient = new XMLHttpRequest();
-            dohClient.open("GET", urlForDoH, true);
-            dohClient.responseType = "json";
-            dohClient.onreadystatechange = waitForAllDohDone;
-            dohClient.send();
-            resultOfDohs += 4;
-            break;
+    if (!dnsRecordErr) { 
+        for (i in webCnameForDoh) {
+            if (webCnameForDoh[i].dohed == false) {
+                let urlForDoH = "https://dns.google.com/resolve?name=" + webCnameForDoh[i].cname;
+                dohClient = new XMLHttpRequest();
+                dohClient.open("GET", urlForDoH, true);
+                dohClient.responseType = "json";
+                dohClient.onreadystatechange = waitForAllDohDone;
+                dohClient.send();
+                resultOfDohs += 4;
+                break;
+            }
         }
     }
 
@@ -1054,6 +1060,7 @@ function getWebInfoFromBrowser(browserResponse) {
 function doh(browserResponse) {
     resultByIp = "Red";
     resultByCname = "Red";
+    dnsRecordErr = false;
     getWebInfoFromBrowser(browserResponse);
     dohFromWebInfo();
 }
