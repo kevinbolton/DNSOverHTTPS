@@ -5,7 +5,8 @@ var dohClient, dohClientReverse, dohClientIP, dohClientCf, dohClientReverseCf, d
 var webIpForDoh, webPtrForDoh, webCnameForDoh;
 // Resluts
 var flagPrivateIp, resultByIp, resultByCname;
-var currentTab, resultOfDohs, dnsRecordErr;
+var currentTab, resultOfDohs;
+var dohErr, reverseDohErr, ipDohErr;
 
 function getTabInfomation() {
     function updateTab(tabs) {
@@ -123,7 +124,7 @@ function updateRecordDohCf() {
             }
         } else {
             console.log("[Error] DoH response status: ", dohClientCf.response.Status);
-            dnsRecordErr = true;
+            dohErr = true;
         }
     } else {
         console.log("[Error] DoH status: ", dohClientCf.status);
@@ -154,6 +155,7 @@ function updateRecordDohReverseCf() {
             }
         } else {
             console.log("[Error] Reverse DoH response status: ", dohClientReverseCf.response.Status);
+            reverseDohErr = true;
         }
     } else {
         console.log("[Error] Reverse DoH status: ", dohClientReverseCf.status);
@@ -194,6 +196,7 @@ function updateRecordDohIpCf() {
             }
         } else {
             console.log("[Error] IP DoH response status: ", dohClientIpCf.response.Status);
+            ipDohErr = true;
         }
     } else {
         console.log("[Error] IP DoH status: ", dohClientIpCf.status);
@@ -236,7 +239,7 @@ function updateRecordDoh() {
             }
         } else {
             console.log("[Error] DoH response status: ", dohClient.response.Status);
-            dnsRecordErr = true;
+            dohErr = true;
         }
     } else {
         console.log("[Error] DoH status: ", dohClient.status);
@@ -267,6 +270,7 @@ function updateRecordDohReverse() {
             }
         } else {
             console.log("[Error] Reverse DoH response status: ", dohClientReverse.response.Status);
+            reverseDohErr = true;
         }
     } else {
         console.log("[Error] Reverse DoH status: ", dohClientReverse.status);
@@ -307,6 +311,7 @@ function updateRecordDohIp() {
             }
         } else {
             console.log("[Error] IP DoH response status: ", dohClientIp.response.Status);
+            ipDohErr = true;
         }
     } else {
         console.log("[Error] IP DoH status: ", dohClientIp.status);
@@ -893,7 +898,7 @@ function dohFromWebInfo() {
     resultOfDohs = 0; // [cname][ptr][ip]
 
     // Cloudflare
-    if (!dnsRecordErr) { 
+    if (!dohErr) { 
         for (i in webCnameForDoh) {
             if (webCnameForDoh[i].dohed == false) {
                 let urlForDoHCf = "https://cloudflare-dns.com/dns-query?name=" + webCnameForDoh[i].cname + "&type=A&do=false&cd=false";
@@ -909,37 +914,41 @@ function dohFromWebInfo() {
         }
     }
     
-    for (i in webPtrForDoh) {
-        if (webPtrForDoh[i].dohed == false) {
-            let urlForReverseDohCf = "https://cloudflare-dns.com/dns-query?name=" + webPtrForDoh[i].ptr + "&type=PTR&do=false&cd=false";
-            dohClientReverseCf = new XMLHttpRequest();
-            dohClientReverseCf.open("GET", urlForReverseDohCf, true);
-            dohClientReverseCf.setRequestHeader("accept", "application/dns-json");
-            dohClientReverseCf.responseType = "json";
-            dohClientReverseCf.onload = waitForAllDohDone;
-            dohClientReverseCf.send();
-            resultOfDohs += 16;
-            break;
+    if(!reverseDohErr) {
+        for (i in webPtrForDoh) {
+            if (webPtrForDoh[i].dohed == false) {
+                let urlForReverseDohCf = "https://cloudflare-dns.com/dns-query?name=" + webPtrForDoh[i].ptr + "&type=PTR&do=false&cd=false";
+                dohClientReverseCf = new XMLHttpRequest();
+                dohClientReverseCf.open("GET", urlForReverseDohCf, true);
+                dohClientReverseCf.setRequestHeader("accept", "application/dns-json");
+                dohClientReverseCf.responseType = "json";
+                dohClientReverseCf.onload = waitForAllDohDone;
+                dohClientReverseCf.send();
+                resultOfDohs += 16;
+                break;
+            }
         }
     }
     
-    for (i in webIpForDoh) {
-        if (webIpForDoh[i].dohed == false) {
-            let ptrformWebIpFromDohCf = getPtr(webIpForDoh[i].ip);
-            let urlForIpDohCf = "https://cloudflare-dns.com/dns-query?name=" + ptrformWebIpFromDohCf + "&type=PTR&do=false&cd=false";
-            dohClientIpCf = new XMLHttpRequest();
-            dohClientIpCf.open("GET", urlForIpDohCf, true);
-            dohClientIpCf.setRequestHeader("accept", "application/dns-json");
-            dohClientIpCf.responseType = "json";
-            dohClientIpCf.onload = waitForAllDohDone;
-            dohClientIpCf.send();
-            resultOfDohs += 8;
-            break;
+    if(!ipDohErr) {
+        for (i in webIpForDoh) {
+            if (webIpForDoh[i].dohed == false) {
+                let ptrformWebIpFromDohCf = getPtr(webIpForDoh[i].ip);
+                let urlForIpDohCf = "https://cloudflare-dns.com/dns-query?name=" + ptrformWebIpFromDohCf + "&type=PTR&do=false&cd=false";
+                dohClientIpCf = new XMLHttpRequest();
+                dohClientIpCf.open("GET", urlForIpDohCf, true);
+                dohClientIpCf.setRequestHeader("accept", "application/dns-json");
+                dohClientIpCf.responseType = "json";
+                dohClientIpCf.onload = waitForAllDohDone;
+                dohClientIpCf.send();
+                resultOfDohs += 8;
+                break;
+            }
         }
     }
     
     // Google
-    if (!dnsRecordErr) { 
+    if (!dohErr) { 
         for (i in webCnameForDoh) {
             if (webCnameForDoh[i].dohed == false) {
                 let urlForDoH = "https://dns.google.com/resolve?name=" + webCnameForDoh[i].cname;
@@ -954,30 +963,34 @@ function dohFromWebInfo() {
         }
     }
 
-    for (i in webPtrForDoh) {
-        if (webPtrForDoh[i].dohed == false) {
-            let urlForReverseDoh = "https://dns.google.com/resolve?name=" + webPtrForDoh[i].ptr +"&type=PTR";
-            dohClientReverse = new XMLHttpRequest();
-            dohClientReverse.open("GET", urlForReverseDoh, true);
-            dohClientReverse.responseType = "json";
-            dohClientReverse.onload = waitForAllDohDone;
-            dohClientReverse.send();
-            resultOfDohs += 2;
-            break;
+    if(!reverseDohErr) {
+        for (i in webPtrForDoh) {
+            if (webPtrForDoh[i].dohed == false) {
+                let urlForReverseDoh = "https://dns.google.com/resolve?name=" + webPtrForDoh[i].ptr +"&type=PTR";
+                dohClientReverse = new XMLHttpRequest();
+                dohClientReverse.open("GET", urlForReverseDoh, true);
+                dohClientReverse.responseType = "json";
+                dohClientReverse.onload = waitForAllDohDone;
+                dohClientReverse.send();
+                resultOfDohs += 2;
+                break;
+            }
         }
     }
 
-    for (i in webIpForDoh) {
-        if (webIpForDoh[i].dohed == false) {
-            let ptrformWebIpFromDoh = getPtr(webIpForDoh[i].ip);
-            let urlForIpDoh = "https://dns.google.com/resolve?name=" + ptrformWebIpFromDoh +"&type=PTR";
-            dohClientIp = new XMLHttpRequest();
-            dohClientIp.open("GET", urlForIpDoh, true);
-            dohClientIp.responseType = "json";
-            dohClientIp.onload = waitForAllDohDone;
-            dohClientIp.send();
-            resultOfDohs += 1;
-            break;
+    if(!ipDohErr) {
+        for (i in webIpForDoh) {
+            if (webIpForDoh[i].dohed == false) {
+                let ptrformWebIpFromDoh = getPtr(webIpForDoh[i].ip);
+                let urlForIpDoh = "https://dns.google.com/resolve?name=" + ptrformWebIpFromDoh +"&type=PTR";
+                dohClientIp = new XMLHttpRequest();
+                dohClientIp.open("GET", urlForIpDoh, true);
+                dohClientIp.responseType = "json";
+                dohClientIp.onload = waitForAllDohDone;
+                dohClientIp.send();
+                resultOfDohs += 1;
+                break;
+            }
         }
     }
 
@@ -1060,7 +1073,9 @@ function getWebInfoFromBrowser(browserResponse) {
 function doh(browserResponse) {
     resultByIp = "Red";
     resultByCname = "Red";
-    dnsRecordErr = false;
+    dohErr = false;
+    reverseDohErr = false;
+    ipDohErr = false;
     getWebInfoFromBrowser(browserResponse);
     dohFromWebInfo();
 }
