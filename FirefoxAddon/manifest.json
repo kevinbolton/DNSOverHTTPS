@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "DNS over HTTPS",
-  "version": "0.5",
+  "version": "0.6",
 
   "author": "www.linkedin.com/in/kevin-bolton",
   "description": "Check web site IP is spoofed or not",
